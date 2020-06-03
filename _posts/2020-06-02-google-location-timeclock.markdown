@@ -158,3 +158,5 @@ fig.show()
 ```
 
 ![Plot](/assets/2020-06-02-plot.png)
+
+It can be seen from the chart that around July 2016, I transitioned from 12 hour shifts to a regular 8 hour work day.  
