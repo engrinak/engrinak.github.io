@@ -18,5 +18,4 @@ github_username:  engrinak
 
 # Build settings
 markdown: kramdown
-kramdown:
-  line_width: 120
+
