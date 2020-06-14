@@ -9,7 +9,7 @@ At some point in my career, I became concerned with tracking my hours worked and
 
 # Thought process
 
-We know that we can get the history of our lat/long for as long as we've used a smartphone with google maps.  With that, we can set a point of interest like an office building with a known lat/long.  Then we can ask ourselves the following question: How much time do I spend each day within a given radius of that point?  The distance between lat/long coordinates can be found with the [haversine formula](https://en.wikipedia.org/wiki/Haversine_formula).  Luckily someone already [did the hard work](https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points) for us:
+We know that we can get the history of our lat/long for as long as we've used a smartphone with google maps.  With that, we can set a point of interest like an office building with a known lat/long.  Then we can ask ourselves the following question: How much time do I spend each day within a given radius of that point?  The distance between lat/long coordinates can be found with the [haversine Formula](https://en.wikipedia.org/wiki/Haversine_formula).  Luckily someone already [did the hard work](https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points) for us:
 
 ```python
 from math import radians, cos, sin, asin, sqrt
@@ -157,8 +157,6 @@ ax.axes.set_ylabel("Hours Worked (tdelta)")
 fig.show()
 ```
 
-Now we have our data summarized by day and we can take a quick look for any interesting trends and QC the data in general.
-
 ![Plot](/assets/2020-06-02-plot.png)
 
-I think that is as far as I'll take this project for now. Later on I might try to put together some sort of dashboard or report that could be used on a regular basis.
+It can be seen from the chart that around July 2016, I transitioned from 12 hour shifts to a regular 8 hour work day.  

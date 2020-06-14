@@ -243,3 +243,4 @@ By gathering this data, I have been able to make some observations that I might 
 * Set up a web server on the pi, using Chart.js to make a dashboard
 
 
+
