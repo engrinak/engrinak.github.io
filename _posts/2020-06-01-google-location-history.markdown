@@ -6,7 +6,7 @@ categories: python
 ---
 # Geotagging photos with Google Location History
 
-Geotagging photos can be very useful and while most smartphones take care of this automatically, many modern DSLR cameras do not.  Using the approach below, we can tag photos from our library using our google location history assuming that use the google map service and had our smartphone with us while shooting with the DSLR.
+Geotagging photos can be very useful and while most smartphones take care of this automatically, many modern DSLR cameras do not.  Using the approach below, we can tag photos from our library using our google location history assuming that we use the google map service and had our smartphone with us while shooting with the DSLR.
 
 To download google location history in json format, visit [google takeout](https://takeout.google.com/?hl=en).
 
@@ -16,7 +16,7 @@ Additional considerations:
 * iPhone with google maps with permission set to "always allow" access to device location
 
 
-We can start by importing some things that we know we're going to need.  And then we can load the json data with pandas using json_normalize.  By examining the json data, we can see that 'locations' is probably the root note so we can start with that.
+We can start by importing some things that we know we're going to need.  And then we can load the json data with pandas using `json_normalize`.  By examining the json data, we can see that `locations` is probably the root note so we can start with that.
 
 
 ```python

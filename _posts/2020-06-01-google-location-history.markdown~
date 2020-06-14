@@ -349,5 +349,5 @@ for file in file_list:
     Modified image: .\img\DSC_1850.jpg with lat=60.1057598 long=-149.4343206 alt=0
 ```
 
-And now we have our output.  I've only shown for example three photos, but there should be no limit on how many could be processed.  I have not tested it, but I'm sure this script could be modified to work with RAW files as well. I did not realize until I did this project but Adobe Lightroom has a map feature that displays photos from the library on a map, so this would be very useful for updating the library for that purpose.  
+I did not realize until I did this project but Adobe Lightroom has a map feature that displays photos from the library on a map, so this would be very useful for updating the library for that purpose.  
     
