@@ -24,7 +24,6 @@ The problem was in this bit of code.
 ```python
 for row in df.itertuples(name=None): 
         if row[0] not in DateTimes: 
-            print('executing' + str(row[0])) 
             c.execute('INSERT INTO data VALUES(' + insQmrks + ')', row) 
 ```
 For each iteration through every row in the dataframe, it also iterates through every time stamp in the database.  While this attempt to avoid duplicates in the database has worked, it ended up costing a lot of time.  Now I have taken the approach of filtering the input csv data by checking the latest time stamp in the DB and then appending only the new data to the DB.  There was also a need to filter out the occasional duplicate header row. 
@@ -38,15 +37,19 @@ def undateparse(x):
     return datetime.strftime(x, '%Y-%m-%d %H:%M:%S')
 ```
 
-And here I do some filtering.  First I take out some repeated headers by using the `'time'` key and also removing all empty `'notnull()'` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the latest timestamp in the database.
+And here I do some filtering.  First I take out some repeated headers by using the `'time'` key and also removing all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
 ```python
     df = df[df.index != 'time']
     df = df[df.index.notnull()]
     df.index = df.index.map(dateparse)
     df = df[df.index > datetime.strptime(DateTimes[-1], '%Y-%m-%d %H:%M:%S')]
+   
+    #Convert index back to string
+    df.index = df.index.map(undateparse)
+
 ```
 
-And now the script runs much faster...  
+And now the script runs orders of magnitude faster. I should mention however, the 19 minutes time above was slightly exaggerated because I was writing to another version of the database and there were several days of data to fill in. Typically it would be 3-4 minutes with a normal amount of data. This way of filtering the data is definitely much faster.
 ```shell
 sfell@sfell-MacBookPro:~$ time python3 rtl_csv_to_sql2.py weather11.csv
 
@@ -55,13 +58,57 @@ user	0m8.088s
 sys	0m0.958s
 ```
 
+## Chart.js
 
-Following [this example](https://github.com/HandsOnDataViz/chartjs-templates/tree/master/line-chart)
+I used chart.js to generate the temperature plot because it has ready made plots and you don't have to be a javascript expert to use them. I started with a line chart template I found here: [HandsOnDataViz](https://github.com/HandsOnDataViz/chartjs-templates/tree/master/line-chart). I ended up making a few modifications to the script: 
 
+* Reset all zero values to null so as to not be plotted. [Link](https://jsfiddle.net/beaver71/u4wto8z1/)
+```javascript
+function zeroToNull(array) {
+  return array.map(function(v) {
+    if (v==0) return null; else return v;
+  });
+}
+```
 
-Get rid of null values [modifying this example](https://jsfiddle.net/beaver71/u4wto8z1/)
+* Set up a date string to set the minimum x axis value.
+```javascript
+let dateObj = new Date();
+dateObj.setDate(dateObj.getDate() - 1);
+let myMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+let day = String(dateObj.getDate()).padStart(2, '0');
+let year = dateObj.getFullYear();
+myDate = year + '-' + myMonth + '-' + day;
+```
 
-Parse dates [example](https://stackoverflow.com/questions/54334676/chart-js-format-date-in-label)
+* Parse dates so that the x axis maintains a fixed spacing between datapoints. [Link](https://stackoverflow.com/questions/54334676/chart-js-format-date-in-label)
+```javascript
+xAxes: [{
+            scaleLabel: {
+              display: X_AXIS !== '',
+              labelString: X_AXIS
+            },
+            gridLines: {
+              display: SHOW_GRID,
+            },
+            ticks: {
+              callback: function(value, index, values) {
+                return value.toLocaleString();
+              },
+            },
+            type: 'time',
+            display: true,
+            time: {
+              parser: 'YYYY-MM-DD HH:mm:ss',
+              tooltipFormat: 'll HH:mm',
+              unit: 'day',
+              unitStepSize: 1,
+              displayFormats: {'day': 'MM/DD/YYYY'},
+              min: myDate,
+              //max: '06/10/2020 12:00'
+            }
+          }]
+``` 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   
