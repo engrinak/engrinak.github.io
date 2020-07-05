@@ -37,7 +37,7 @@ def undateparse(x):
     return datetime.strftime(x, '%Y-%m-%d %H:%M:%S')
 ```
 
-And here I do some filtering.  First I take out some repeated headers by using the `'time'` key and also removing all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
+This is how I've cleaned up the data a bit and trimmed the input data by date.  First I take out some repeated headers by using the `'time'` key and also removing all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
 ```python
     df = df[df.index != 'time']
     df = df[df.index.notnull()]
@@ -49,7 +49,7 @@ And here I do some filtering.  First I take out some repeated headers by using t
 
 ```
 
-And now the script runs orders of magnitude faster. I should mention however, the 19 minutes time above was slightly exaggerated because I was writing to another version of the database and there were several days of data to fill in. Typically it would be 3-4 minutes with a normal amount of data. This way of filtering the data is definitely much faster.
+Now the script runs orders of magnitude faster. I should mention however, the 19 minutes time above was slightly exaggerated because I was writing to another version of the database and there were several days of data to fill in. Typically it would be 3-4 minutes with a normal amount of data. This method of trimming the data is still much much faster.
 ```shell
 sfell@sfell-MacBookPro:~$ time python3 rtl_csv_to_sql2.py weather11.csv
 
@@ -123,17 +123,22 @@ xAxes: [{
 <div><canvas id="chart-container" style="height: 400px; width: 100%"></canvas></div>
 <script src="/assets/script.js"></script>
 
+# Display Last Values
+In addition to the chart, I wanted to display the current temperature readings in numerical format.  This was done just by accessing the last not null element from each array in the dataset and then replacing the text in the appropriate HTML tag. I'm sure there is a more elegant way of doing this, but this was the quickest way I could find as a beginner.
+```javascript
+$().ready(function() {
+  $("#T0").html(datasets[0].data.filter(x => x != null).slice(-1)[0]),
+  $("#T1").html(datasets[1].data.filter(x => x != null).slice(-1)[0]),
+  $("#T2").html(datasets[2].data.filter(x => x != null).slice(-1)[0]),
+  $("#T3").html(datasets[3].data.filter(x => x != null).slice(-1)[0]),
+  $("#T4").html(datasets[4].data.filter(x => x != null).slice(-1)[0])
+});
+```
 Get last not null value from array [link](https://stackoverflow.com/questions/49190873/get-the-last-non-null-element-of-an-array)
 
-Set up a Cron Job to process the data every 15 minutes [link](https://phoenixnap.com/kb/set-up-cron-job-linux)
-
-Run an HTTP server [link](https://docs.python.org/3/library/http.server.html)
-
-Do some debugging along the way.  `pdb.pm()` provides a really cool way to be able to see variables inside a function where the exception occurred. [Link](https://docs.python.org/3/library/pdb.html)
-
-
-# Display Last Values
- <table style="width:70%">
+HTML:
+```HTML
+<table style="width:70%">
   <tr>
     <th>T0</th>
     <th>T1</th>
@@ -149,6 +154,31 @@ Do some debugging along the way.  `pdb.pm()` provides a really cool way to be ab
     <td style="text-align:center"><div id="T4"></div></td>
   </tr>
 </table> 
+```
+<table style="width:70%">
+  <tr>
+    <th>T0</th>
+    <th>T1</th>
+    <th>T2</th>
+    <th>T3</th>
+    <th>TC</th>
+  </tr>
+  <tr>
+    <td style="text-align:center"><div id="T0"></div></td>
+    <td style="text-align:center"><div id="T1"></div></td>
+    <td style="text-align:center"><div id="T2"></div></td>
+    <td style="text-align:center"><div id="T3"></div></td>
+    <td style="text-align:center"><div id="T4"></div></td>
+  </tr>
+</table> 
+Set up a Cron Job to process the data every 15 minutes [link](https://phoenixnap.com/kb/set-up-cron-job-linux)
+
+Run an HTTP server [link](https://docs.python.org/3/library/http.server.html)
+
+Do some debugging along the way.  `pdb.pm()` provides a really cool way to be able to see variables inside a function where the exception occurred. [Link](https://docs.python.org/3/library/pdb.html)
+
+
+
 
 <br><br>
 # This post is currently in progress

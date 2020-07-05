@@ -16,7 +16,6 @@ function zeroToNull(array) {
   });
 }
 
-
 $(document).ready(function() {
 
   // Read data file and create a chart
@@ -45,9 +44,13 @@ $().ready(function() {
   $("#T4").html(datasets[4].data.filter(x => x != null).slice(-1)[0])
 });    
 
-
-
-    
+//Get start date for the chart
+let dateObj = new Date();
+dateObj.setDate(dateObj.getDate() - 1);
+let myMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+let day = String(dateObj.getDate()).padStart(2, '0');
+let year = dateObj.getFullYear();
+myDate = year + '-' + myMonth + '-' + day;
     
     // Get container for the chart
     var ctx = document.getElementById('chart-container').getContext('2d');
@@ -92,7 +95,7 @@ $().ready(function() {
               unit: 'day',
               unitStepSize: 1,
               displayFormats: {'day': 'MM/DD/YYYY'},
-              min: '2020-06-29 12:00',
+              min: myDate,
               //max: '06/10/2020 12:00'
             }
           }],
@@ -107,6 +110,9 @@ $().ready(function() {
             },
             ticks: {
               beginAtZero: BEGIN_AT_ZERO,
+	      //steps: 10,
+	      //stepValue: 5,
+	      max:90,
               callback: function(value, index, values) {
                 return value.toLocaleString()
               }
