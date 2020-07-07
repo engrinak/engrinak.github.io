@@ -1,17 +1,17 @@
 ---
 layout: post
-title: "Uncharted Territory" 
-date:   2020-06-25 08:00:00 -0800
+title: "Weather station hack part 2: plotting data with javascript" 
+date:   2020-07-07 01:00:00 -0800
 categories: python
 ---
 
-In my previous post about the weather station hack, I learned how to collect data via 433Mhz radio signal with my RTL-SDR device.  Now I want to create a useful display of the current temperature readings in my house, accessible by mobile device.   
+In my previous post about the weather station hack, I learned how to collect data via 433Mhz radio signal with my RTL-SDR device.  Now I want to create a useful display of the current temperature readings in my house, accessible by mobile device.  Before getting into plotting data however, we'll take a look at how I solved a problem with the python script taking too long to execute.
 
 
 ![Process Overview](/assets/weatherstation-hack.png)
 
 ## Script Improvement  
-In my previous post, I wrote about handling the data in csv format and creating an SQLite database.  I quickly found out that my script was very slow once the data began to accumulate, sometimes taking 2-3 minutes just to update the database with new data.  This could quickly become unacceptable.  Using the time module in python, I investigated what was taking so long in the code. 
+As data began to accumulate, the script would sometimes taking 2-3 minutes just to update the database with new data.  This could quickly become unacceptable.  Using the time module in python as well as the linux [time](https://unix.stackexchange.com/questions/10745/how-do-i-time-a-specific-command) command, I investigated what was taking so long in the code.   
 
 Execution time 19 minutes!
 ```shell
@@ -29,9 +29,9 @@ for row in df.itertuples(name=None):
         if row[0] not in DateTimes: 
             c.execute('INSERT INTO data VALUES(' + insQmrks + ')', row) 
 ```
-For each iteration through every row in the dataframe, it also iterates through every time stamp in the database.  While this attempt to avoid duplicates in the database has worked, it ended up costing a lot of time.  Now I have taken the approach of filtering the input csv data by checking the latest time stamp in the DB and then appending only the new data to the DB.  There was also a need to filter out the occasional duplicate header row. 
+For each iteration through every row in the dataframe, it also iterates through every time stamp in the database.  While this attempt to avoid duplicates in the database has worked, it ended up costing a lot of time.  Now I have taken the approach of filtering the input data by checking the latest time stamp in the DB and then appending only the new data to the DB.  There was also a need to filter out the occasional duplicate header row. 
 
-I was previously not parsing any of the date strings but in order to filter, I had to set up a couple of date parsers; one to parse the dates and do the filtering, and another to unparse back to string format to write into the DB. Here are two simple date parsing and unparsing functions.
+I was previously not parsing any of the date strings but in order to filter, I had to set up a couple of date parsers; one to parse the dates and do the filtering, and another to unparse back to string format to write into the DB. Here are two simple date parsing and un-parsing functions.
 ```python
 def dateparse(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
@@ -40,7 +40,7 @@ def undateparse(x):
     return datetime.strftime(x, '%Y-%m-%d %H:%M:%S')
 ```
 
-This is how I've cleaned up the data a bit and trimmed the input data by date. First it takes out some repeated headers by using the `'time'` key and also removes all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
+This is how I've cleaned up the data and trimmed the input data by date. First it takes out some repeated headers by using the `time` key and also removes all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
 ```python
     df = df[df.index != 'time']
     df = df[df.index.notnull()]
@@ -204,7 +204,7 @@ Python comes with a simple HTTP server that I'm using to serve everything in the
 
 <br><br>
 # Final thoughts
-I've been running this server for a couple of weeks on my old 2009 macbook pro with Ubuntu MATE linux and it has been nice to be able to check temperature trends any time on my phone. I also had fun working on this and although it wasn't my original intention, I managed to learn a thing or two about javascript as well. 
+I set out on this project with the intention of learning a thing or two about plotting data with javascript and creating something practical at the same time. I've been running this server for a couple of weeks on my old 2009 Macbook Pro with Ubuntu linux and it has been fairly smooth and provided some useful information. I think I have taken this project about as far as I can, but I would still like to get a raspberry pi so that I don't have to keep the laptop running all the time. And last but not least, I'd like to thank my brother Chris for the ideas and suggestions about using Chart.js.
 
 Check out the full source and files for this project on my github repository: [weatherstation-hack](https://github.com/engrinak/weatherstation-hack)
 

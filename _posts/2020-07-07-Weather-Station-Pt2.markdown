@@ -11,7 +11,7 @@ In my previous post about the weather station hack, I learned how to collect dat
 ![Process Overview](/assets/weatherstation-hack.png)
 
 ## Script Improvement  
-As data began to accumulate, the script would sometimes taking 2-3 minutes just to update the database with new data.  This could quickly become unacceptable.  Using the time module in python as well as the linux [time](https://unix.stackexchange.com/questions/10745/how-do-i-time-a-specific-command) command, I investigated what was taking so long in the code.   
+As data began to accumulate, the script would sometimes take 2-3 minutes just to update the database with new data.  This could quickly become unacceptable.  Using the time module in python as well as the linux [time](https://unix.stackexchange.com/questions/10745/how-do-i-time-a-specific-command) command, I investigated what was taking so long in the code.   
 
 Execution time 19 minutes!
 ```shell
