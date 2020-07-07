@@ -95,8 +95,8 @@ myDate = year + '-' + myMonth + '-' + day;
               unit: 'day',
               unitStepSize: 1,
               displayFormats: {'day': 'MM/DD/YYYY'},
-              min: myDate,
-              //max: '06/10/2020 12:00'
+              min: '2020-07-02'
+              //max: '2020-07-03'
             }
           }],
           yAxes: [{

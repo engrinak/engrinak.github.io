@@ -7,6 +7,9 @@ categories: python
 
 In my previous post about the weather station hack, I learned how to collect data via 433Mhz radio signal with my RTL-SDR device.  Now I want to create a useful display of the current temperature readings in my house, accessible by mobile device.   
 
+
+![Process Overview](/assets/weatherstation-hack.png)
+
 ## Script Improvement  
 In my previous post, I wrote about handling the data in csv format and creating an SQLite database.  I quickly found out that my script was very slow once the data began to accumulate, sometimes taking 2-3 minutes just to update the database with new data.  This could quickly become unacceptable.  Using the time module in python, I investigated what was taking so long in the code. 
 
@@ -37,7 +40,7 @@ def undateparse(x):
     return datetime.strftime(x, '%Y-%m-%d %H:%M:%S')
 ```
 
-This is how I've cleaned up the data a bit and trimmed the input data by date.  First I take out some repeated headers by using the `'time'` key and also removing all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
+This is how I've cleaned up the data a bit and trimmed the input data by date. First it takes out some repeated headers by using the `'time'` key and also removes all empty `notnull()` rows.  The `DateTimes[]` list is populated earlier in the script (see previous post) with all timestamps in the DB.  Here I simply filter the input data for all dates greater than the last timestamp in the DateTimes list, `DateTimes[-1]`.
 ```python
     df = df[df.index != 'time']
     df = df[df.index.notnull()]
@@ -49,7 +52,7 @@ This is how I've cleaned up the data a bit and trimmed the input data by date.  
 
 ```
 
-Now the script runs orders of magnitude faster. I should mention however, the 19 minutes time above was slightly exaggerated because I was writing to another version of the database and there were several days of data to fill in. Typically it would be 3-4 minutes with a normal amount of data. This method of trimming the data is still much much faster.
+Now the script runs orders of magnitude faster. I should mention however, the 19 minutes time above was slightly exaggerated because I was writing to another version of the database and there were several days of data to fill in. Typically it would be 3-4 minutes with a normal amount of data. This new method of trimming the data is definitely much much faster.
 ```shell
 sfell@sfell-MacBookPro:~$ time python3 rtl_csv_to_sql2.py weather11.csv
 
@@ -105,7 +108,6 @@ xAxes: [{
               unitStepSize: 1,
               displayFormats: {'day': 'MM/DD/YYYY'},
               min: myDate,
-              //max: '06/10/2020 12:00'
             }
           }]
 ``` 
@@ -122,9 +124,12 @@ xAxes: [{
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.1.0/papaparse.min.js"></script>
 <div><canvas id="chart-container" style="height: 400px; width: 100%"></canvas></div>
 <script src="/assets/script.js"></script>
+*note: for the purposes of this blog, I have manually set the min and max date since I'm not updating the file in real time on github*
+
 
 # Display Last Values
-In addition to the chart, I wanted to display the current temperature readings in numerical format.  This was done just by accessing the last not null element from each array in the dataset and then replacing the text in the appropriate HTML tag. I'm sure there is a more elegant way of doing this, but this was the quickest way I could find as a beginner.
+In addition to the chart, I wanted to display the current temperature readings in numerical format.  This was done just by accessing the last not null element from each array in the dataset and then replacing the text in the appropriate HTML tag. I'm sure there is a more elegant way of doing this, but this was the quickest way I could find as a beginner. How to get the last not null value in an array: [link](https://stackoverflow.com/questions/49190873/get-the-last-non-null-element-of-an-array) 
+
 ```javascript
 $().ready(function() {
   $("#T0").html(datasets[0].data.filter(x => x != null).slice(-1)[0]),
@@ -134,7 +139,6 @@ $().ready(function() {
   $("#T4").html(datasets[4].data.filter(x => x != null).slice(-1)[0])
 });
 ```
-Get last not null value from array [link](https://stackoverflow.com/questions/49190873/get-the-last-non-null-element-of-an-array)
 
 HTML:
 ```HTML
@@ -155,6 +159,8 @@ HTML:
   </tr>
 </table> 
 ```
+<br><br>
+# HTML Numeric Display
 <table style="width:70%">
   <tr>
     <th>T0</th>
@@ -171,14 +177,35 @@ HTML:
     <td style="text-align:center"><div id="T4"></div></td>
   </tr>
 </table> 
-Set up a Cron Job to process the data every 15 minutes [link](https://phoenixnap.com/kb/set-up-cron-job-linux)
+<br><br>
 
-Run an HTTP server [link](https://docs.python.org/3/library/http.server.html)
 
-Do some debugging along the way.  `pdb.pm()` provides a really cool way to be able to see variables inside a function where the exception occurred. [Link](https://docs.python.org/3/library/pdb.html)
 
+# Run it real time
+In order to have the data update automatically, I decided to use `cron`, which is basically the linux equivalent of windows task scheduler. I set it to run the scripts every 10 minutes.  Using `&&` between the execution commands ensures that the first one finishes before it starts on the second. [link](https://phoenixnap.com/kb/set-up-cron-job-linux)
+
+
+To edit the cron jobs, use the following command:
+
+`crontab -e`
+*note: it may ask which editor you would like to use on the first time that you run it*
+
+Add a line like the one below:
+
+`*/10 * * * * python3 /home/sfell/rtl_csv_to_sql2.py weather1.csv && python3 /home/sfell/plotweather_v2.py`
+
+
+<br><br>
+# Serve it up
+
+Python comes with a simple HTTP server that I'm using to serve everything in the `serve` folder (index.html, script.js, df1.csv).  Here are some details on running the http server: [link](https://docs.python.org/3/library/http.server.html)
 
 
 
 <br><br>
-# This post is currently in progress
+# Final thoughts
+I've been running this server for a couple of weeks on my old 2009 macbook pro with Ubuntu MATE linux and it has been nice to be able to check temperature trends any time on my phone. I also had fun working on this and although it wasn't my original intention, I managed to learn a thing or two about javascript as well. 
+
+Check out the full source and files for this project on my github repository: [weatherstation-hack](https://github.com/engrinak/weatherstation-hack)
+
+
