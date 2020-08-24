@@ -1,0 +1,2 @@
+I"‹<p>In my previous post about the weather station hack, I learned how to collect data via 433Mhz radio signal with my RTL-SDR device.  Now I want to create a useful display of the current temperature readings in my house, accessible by mobile device.  Before getting into plotting data however, weâ€™ll take a look at how I solved a problem with the python script taking too long to execute.</p>
+:ET

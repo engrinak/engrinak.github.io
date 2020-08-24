@@ -1,0 +1,106 @@
+I"�!<p>When I woke up this morning, I had no idea what I was doing.  I wanted to put a “live” chart of my weather station data here on my page.  First, I googled if it is even possible to put javascript in <a href="https://code-maven.com/javascript-on-github-pages">a github page</a>.  It turns out that you can.  Below is a simple example of some text that was extracted from a json file using jquery:</p>
+
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+<script src="/assets/json.js"></script>
+
+<div id="text"></div>
+<p><br />
+<br />
+Now how about a chart? This is a straight copy-paste from the introductory example from the <a href="https://www.chartjs.org/docs/latest/">chart.js</a> documentation.  The one thing I had to do differently was to include chart.js: <code class="language-plaintext highlighter-rouge">&lt;script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"&gt;&lt;/script&gt;</code></p>
+
+<p><br /></p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="nx">canvas</span> <span class="nx">id</span><span class="o">=</span><span class="dl">"</span><span class="s2">myChart</span><span class="dl">"</span> <span class="nx">width</span><span class="o">=</span><span class="dl">"</span><span class="s2">400</span><span class="dl">"</span> <span class="nx">height</span><span class="o">=</span><span class="dl">"</span><span class="s2">400</span><span class="dl">"</span><span class="o">&gt;&lt;</span><span class="sr">/canvas</span><span class="err">&gt;
+</span><span class="o">&lt;</span><span class="nx">script</span> <span class="nx">src</span><span class="o">=</span><span class="dl">"</span><span class="s2">https://cdn.jsdelivr.net/npm/chart.js@2.8.0</span><span class="dl">"</span><span class="o">&gt;&lt;</span><span class="sr">/script</span><span class="err">&gt;
+</span><span class="o">&lt;</span><span class="nx">script</span><span class="o">&gt;</span>
+<span class="kd">var</span> <span class="nx">ctx</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">'</span><span class="s1">myChart</span><span class="dl">'</span><span class="p">).</span><span class="nx">getContext</span><span class="p">(</span><span class="dl">'</span><span class="s1">2d</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">myChart</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Chart</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="p">{</span>
+    <span class="na">type</span><span class="p">:</span> <span class="dl">'</span><span class="s1">bar</span><span class="dl">'</span><span class="p">,</span>
+    <span class="na">data</span><span class="p">:</span> <span class="p">{</span>
+        <span class="na">labels</span><span class="p">:</span> <span class="p">[</span><span class="dl">'</span><span class="s1">R</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">B</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">Y</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">G</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">P</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">O</span><span class="dl">'</span><span class="p">],</span>
+        <span class="na">datasets</span><span class="p">:</span> <span class="p">[{</span>
+            <span class="na">label</span><span class="p">:</span> <span class="dl">'</span><span class="s1">Bar Height</span><span class="dl">'</span><span class="p">,</span>
+            <span class="na">data</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
+            <span class="na">backgroundColor</span><span class="p">:</span> <span class="p">[</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 99, 132, 0.2)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(54, 162, 235, 0.2)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 206, 86, 0.2)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(75, 192, 192, 0.2)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(153, 102, 255, 0.2)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 159, 64, 0.2)</span><span class="dl">'</span>
+            <span class="p">],</span>
+            <span class="na">borderColor</span><span class="p">:</span> <span class="p">[</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 99, 132, 1)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(54, 162, 235, 1)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 206, 86, 1)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(75, 192, 192, 1)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(153, 102, 255, 1)</span><span class="dl">'</span><span class="p">,</span>
+                <span class="dl">'</span><span class="s1">rgba(255, 159, 64, 1)</span><span class="dl">'</span>
+            <span class="p">],</span>
+            <span class="na">borderWidth</span><span class="p">:</span> <span class="mi">1</span>
+        <span class="p">}]</span>
+    <span class="p">},</span>
+    <span class="na">options</span><span class="p">:</span> <span class="p">{</span>
+        <span class="na">scales</span><span class="p">:</span> <span class="p">{</span>
+            <span class="na">yAxes</span><span class="p">:</span> <span class="p">[{</span>
+                <span class="na">ticks</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="na">beginAtZero</span><span class="p">:</span> <span class="kc">true</span>
+                <span class="p">}</span>
+            <span class="p">}]</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">});</span>
+<span class="o">&lt;</span><span class="sr">/script</span><span class="err">&gt;
+</span></code></pre></div></div>
+<p>All you have to do is plop the code directly into your markdown file (I am using <a href="https://jekyllrb.com/">Jekyll</a>) and it will work.  Try it!
+<br /></p>
+
+<h1 id="chart-example">Chart Example</h1>
+<canvas id="myChart" width="400" height="400"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+<script>
+var ctx = document.getElementById('myChart').getContext('2d');
+var myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['R', 'B', 'Y', 'G', 'P', 'O'],
+        datasets: [{
+            label: 'Bar Height',
+            data: [3, 13, 6, 15, 4, 7],
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.2)',
+                'rgba(54, 162, 235, 0.2)',
+                'rgba(255, 206, 86, 0.2)',
+                'rgba(75, 192, 192, 0.2)',
+                'rgba(153, 102, 255, 0.2)',
+                'rgba(255, 159, 64, 0.2)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero: true
+                }
+            }]
+        }
+    }
+});
+</script>
+
+<p><br /></p>
+
+<p>Now that I’ve figured out how to copy-paste code, I’m off to try to learn how to plot actual data from the weather station.</p>
+:ET

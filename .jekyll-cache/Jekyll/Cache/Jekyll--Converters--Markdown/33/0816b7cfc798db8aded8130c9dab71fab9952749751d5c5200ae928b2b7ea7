@@ -1,0 +1,307 @@
+I"��<p><img src="/assets/2020-06-10-project.jpg" alt="Weather Station Hack" /></p>
+
+<p>I’ve had this wireless digital thermometer/hygrometer for a while now and we keep it in our kitchen so we can quickly see the temperature outside and know how to dress the kids and if they need snow pants or just a light jacket or if it is warm enough to run around in the sprinklers as was the case today.  The device came with 3 sensors which I have located in a few places throughout the house.</p>
+
+<h3 id="software-defined-radio">Software Defined Radio</h3>
+<p>I have also had a software defined radio <a href="https://www.rtl-sdr.com/">RTL-SDR</a> dongle laying around that I experimented with a few years ago.  I had fun trying to listen in on ham radio communications and a few shortwave stations.</p>
+
+<p>Earlier this week, I was wondering if I could see the signal coming from my cheap weather station.  It turns out that 433Mhz is a standard frequency for these and many other devices.</p>
+
+<p><img src="/assets/2020-06-10-SDR433_1.png" alt="SDR Sharp" /></p>
+
+<p>So then I started wondering if it would be possible to decode such signals and it turns out that there is a really awesome command line utility that does exactly this: <a href="https://github.com/merbanan/rtl_433">RTL_433</a>.</p>
+
+<h3 id="rtl_433">RTL_433</h3>
+<p>So if you have a software defined radio dongle with drivers already installed, and you’re running a debian system (Ubuntu MATE in my case) you can easily install with: <code class="language-plaintext highlighter-rouge">apt-get install rtl-433</code>  I believe is it also available for windows but you may have to compile it yourself.</p>
+
+<p>It can be run with <code class="language-plaintext highlighter-rouge">rtl-433</code> in the terminal, with scrolling output.
+<img src="/assets/2020-06-10-RTL433_Output.png" alt="Screenshot" /></p>
+
+<p>Or it can be run with some options to output to a file as such:
+<code class="language-plaintext highlighter-rouge">rtl_433 -F csv:weather1.csv</code></p>
+
+<p>The measurements from my weather station are coming in as <em>Ambientweather-F007TH</em> on channels 1, 2 and 3. As an added bonus, I am also receiving data from some of my neighbors’ weather stations as well!
+<img src="/assets/2020-06-10_18-25-42.png" alt="Screenshot2" /></p>
+
+<p>At first I put a quick script together to read this CSV file with pandas and plot the output. Before plotting, I had to unpivot the data because all the values are output to a single column (either temperature_F or temperature_C). This was fairly painless but then I realized that I wanted to collect data over a long period of time and be able to handle interruptions in data acquisition. Rather than concatenating csv files together, I decided to output the dataframe to an SQLite database.  This is easily done with <code class="language-plaintext highlighter-rouge">df.to_sql</code> but I found the result to be unsatisfactory due to an issue with appending repeat data to the file.  Pandas apparently does not check for existing records and will write the same data over and over again, which could cause the database to grow unnecessarily large.</p>
+
+<p>So then I started on a workaround using SQLite3 to write the data while checking for existing records on a key: <code class="language-plaintext highlighter-rouge">'time'</code>. Below is the quick and dirty workaround that I came up with. It starts off by reading the current csv file into a dataframe and then passes it to a function where the following things take place:</p>
+
+<ul>
+  <li>A connection to the database is created</li>
+  <li>A list <code class="language-plaintext highlighter-rouge">DateTimes</code> is created to check for duplicate records in the database
+    <ul>
+      <li>One thing to note, which I found interesting is that RTL_433 outputs a lot of duplicate time stamps. This created a problem when pivoting the data as duplicates in the index are not allowed.</li>
+    </ul>
+  </li>
+  <li>It counts the columns in the dataframe so that it outputs the right number of values to the table.</li>
+  <li>It iterates through the tuples of the dataframe. Sqlite takes the values as nameless tuples.
+    <ul>
+      <li>it checks if the timestamp (<code class="language-plaintext highlighter-rouge">row[0]</code>) is in the <code class="language-plaintext highlighter-rouge">DateTimes</code> list and if not, inserts the data into the table.</li>
+      <li>insQmrks is a string like <code class="language-plaintext highlighter-rouge">'?,?,?,?,?'</code> where the number of question marks is the number of columns in the data to be written.</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="kn">import</span> <span class="nn">sqlite3</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="n">mydb</span> <span class="o">=</span> <span class="s">'weather.db'</span>
+<span class="n">csvfile</span> <span class="o">=</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">csvfile</span><span class="p">,</span> <span class="n">low_memory</span><span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">pd_sqlt</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">mydb</span><span class="p">,</span> <span class="n">idxcol</span><span class="p">):</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="p">.</span><span class="n">connect</span><span class="p">(</span><span class="n">mydb</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">conn</span><span class="p">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">DateTimes</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">try</span><span class="p">:</span> <span class="c1">#create table if it doesn't exist
+</span>        <span class="n">df</span><span class="p">.</span><span class="n">to_sql</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'data'</span><span class="p">,</span> <span class="n">con</span><span class="o">=</span><span class="n">conn</span><span class="p">,</span> <span class="n">if_exists</span><span class="o">=</span><span class="s">'fail'</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="c1">#Count the columns in the dataframe
+</span>    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">c</span><span class="p">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'SELECT '</span> <span class="o">+</span> <span class="n">idxcol</span> <span class="o">+</span> <span class="s">' FROM data'</span><span class="p">):</span>
+        <span class="n">DateTimes</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1">#make a string with the correct number of question marks
+</span>    <span class="n">insQmrks</span> <span class="o">=</span> <span class="s">'?,'</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">.</span><span class="n">columns</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">insQmrks</span> <span class="o">=</span> <span class="n">insQmrks</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">insQmrks</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">df</span><span class="p">.</span><span class="n">itertuples</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DateTimes</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">'executing'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">c</span><span class="p">.</span><span class="n">execute</span><span class="p">(</span><span class="s">'INSERT INTO data VALUES('</span> <span class="o">+</span> <span class="n">insQmrks</span> <span class="o">+</span> <span class="s">')'</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span>
+
+    <span class="n">conn</span><span class="p">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">conn</span><span class="p">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="n">pd_sqlt</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">mydb</span><span class="p">,</span> <span class="s">'time'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><br /></p>
+<h3 id="read-data--plot">Read Data &amp; Plot</h3>
+
+<p>Now that we’ve collected the data into the sqlite database (perhaps unnecessarily), it’s time to plot and see how it looks. As per my own personal habit, I’ve started a new script for this.  We can start by importing some things. Pandas will be needed for data manipulation, matplotlib for plotting, datetime for parsing dates and sqlite3 for reading the SQLite DB.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">matplotlib.dates</span> <span class="kn">import</span> <span class="n">AutoDateFormatter</span><span class="p">,</span> <span class="n">AutoDateLocator</span><span class="p">,</span> <span class="n">DateFormatter</span>
+<span class="kn">import</span> <span class="nn">sqlite3</span>
+</code></pre></div></div>
+
+<p>Let’s take a step back for a minute and explain what we have to do here.  The challenge is that the data is coming in like this:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Time</th>
+      <th style="text-align: center">Channel</th>
+      <th>Temperature</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:00</td>
+      <td style="text-align: center">1</td>
+      <td>72.1</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:10</td>
+      <td style="text-align: center">2</td>
+      <td>58.8</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:34</td>
+      <td style="text-align: center">3</td>
+      <td>75.2</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:46</td>
+      <td style="text-align: center">C</td>
+      <td>73.1</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:46</td>
+      <td style="text-align: center">0</td>
+      <td>74.8</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>What I want to do is plot the temperature from each channel (or device) as a separate series on a chart. So in order to do that, I need the data to look like this:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Time</th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>C</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:00</td>
+      <td> </td>
+      <td>72.1</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:10</td>
+      <td> </td>
+      <td> </td>
+      <td>58.8</td>
+      <td> </td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:34</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+      <td>75.2</td>
+      <td> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:46</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+      <td>73.1</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2020-06-10 11:45:46</td>
+      <td>74.8</td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+      <td> </td>
+    </tr>
+  </tbody>
+</table>
+
+<p>(Assuming each device has a unique channel)</p>
+
+<p>So in order do this we need to use the pandas pivot function.  Before I forget however, let’s read the data into a dataframe and parse the dates.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#Connect to the database
+</span><span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="p">.</span><span class="n">connect</span><span class="p">(</span><span class="s">'weather.db'</span><span class="p">)</span>
+
+<span class="c1">#Set up date formatters for the x-axis
+</span><span class="n">xtick_locator</span> <span class="o">=</span> <span class="n">AutoDateLocator</span><span class="p">()</span>
+<span class="n">xtick_formatter</span> <span class="o">=</span> <span class="n">AutoDateFormatter</span><span class="p">(</span><span class="n">xtick_locator</span><span class="p">)</span>
+
+<span class="c1">#Set up the date parsing
+</span><span class="n">dateparse</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">datetime</span><span class="p">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s">'%Y-%m-%d %H:%M:%S'</span><span class="p">)</span>
+
+<span class="c1">#Read the data
+</span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s">'SELECT * from data'</span><span class="p">,</span> <span class="n">con</span> <span class="o">=</span> <span class="n">conn</span><span class="p">,</span> <span class="n">parse_dates</span><span class="o">=</span><span class="p">[</span><span class="s">'time'</span><span class="p">],</span> \
+<span class="n">index_col</span><span class="o">=</span><span class="p">[</span><span class="s">'time'</span><span class="p">])</span>
+
+<span class="c1">#Reset the index because of so many duplicate time stamps, 
+#otherwise pivot will not work.
+</span><span class="n">df</span><span class="p">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Now we can start doing the pivot,</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">df0</span> <span class="o">=</span> <span class="n">df</span><span class="p">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="s">'channel'</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s">'temperature_F'</span><span class="p">,</span><span class="s">'time'</span><span class="p">,</span> \
+ <span class="s">'temperature_C'</span><span class="p">])</span>
+</code></pre></div></div>
+
+<p>But that leaves us with a separate time column which is multi-indexed for each channel.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">In</span> <span class="p">[</span><span class="mi">7</span><span class="p">]:</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">]</span>                                                                                                                   
+<span class="n">Out</span><span class="p">[</span><span class="mi">7</span><span class="p">]:</span> 
+<span class="n">channel</span> <span class="n">NaN</span>   <span class="mi">0</span>   <span class="mi">1</span>                   <span class="mi">2</span>   <span class="mi">3</span>                   <span class="n">C</span> <span class="n">channel</span>
+<span class="mi">0</span>       <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>     <span class="n">NaT</span>
+<span class="mi">1</span>       <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>     <span class="n">NaT</span>
+<span class="mi">2</span>       <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>     <span class="n">NaT</span>
+<span class="mi">3</span>       <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">25</span><span class="p">:</span><span class="mi">06</span> <span class="n">NaT</span>                 <span class="n">NaT</span>     <span class="n">NaT</span>
+<span class="mi">4</span>       <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">25</span><span class="p">:</span><span class="mi">11</span>     <span class="n">NaT</span>
+<span class="p">...</span>      <span class="p">..</span>  <span class="p">..</span>  <span class="p">..</span>                 <span class="p">...</span>  <span class="p">..</span>                 <span class="p">...</span>     <span class="p">...</span>
+<span class="mi">86046</span>   <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">59</span>     <span class="n">NaT</span>
+<span class="mi">86047</span>   <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">59</span>     <span class="n">NaT</span>
+<span class="mi">86048</span>   <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>     <span class="n">NaT</span>
+<span class="mi">86049</span>   <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>     <span class="n">NaT</span>
+<span class="mi">86050</span>   <span class="n">NaT</span> <span class="n">NaT</span> <span class="n">NaT</span>                 <span class="n">NaT</span> <span class="n">NaT</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>     <span class="n">NaT</span>
+</code></pre></div></div>
+
+<p>I ended up doing something kind of messy in order to recombine the time stamps, but it works. It avoids the pandas <strong>setting with copy warning</strong> error.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">df0</span><span class="p">[</span><span class="s">'time1'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">][</span><span class="s">'0'</span><span class="p">]</span>
+<span class="n">df0</span><span class="p">[</span><span class="s">'time2'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time1'</span><span class="p">].</span><span class="n">fillna</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">][</span><span class="s">'1'</span><span class="p">])</span>
+<span class="n">df0</span><span class="p">[</span><span class="s">'time3'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time2'</span><span class="p">].</span><span class="n">fillna</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">][</span><span class="s">'2'</span><span class="p">])</span>
+<span class="n">df0</span><span class="p">[</span><span class="s">'time4'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time3'</span><span class="p">].</span><span class="n">fillna</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">][</span><span class="s">'3'</span><span class="p">])</span>
+<span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'time4'</span><span class="p">].</span><span class="n">fillna</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time'</span><span class="p">][</span><span class="s">'C'</span><span class="p">])</span>
+
+<span class="c1">#Get rid of the junk.
+</span><span class="n">df0</span><span class="p">.</span><span class="n">drop</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s">'time1'</span><span class="p">,</span> <span class="s">'time2'</span><span class="p">,</span> <span class="s">'time3'</span><span class="p">,</span> <span class="s">'time4'</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1">#Convert C to F for channel 0 and C - the neighbors 
+</span><span class="n">df0</span><span class="p">[</span><span class="s">'X'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'temperature_C'</span><span class="p">][</span><span class="s">'0'</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">9</span><span class="o">/</span><span class="mi">5</span><span class="p">)</span> <span class="o">+</span> <span class="mi">32</span>
+<span class="n">df0</span><span class="p">[</span><span class="s">'Y'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df0</span><span class="p">[</span><span class="s">'temperature_C'</span><span class="p">][</span><span class="s">'C'</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">9</span><span class="o">/</span><span class="mi">5</span><span class="p">)</span> <span class="o">+</span> <span class="mi">32</span>
+
+
+</code></pre></div></div>
+
+<p>Now we are left with a dataframe with a single column for the time index, with repeating values included.  And we also have separate columns for each temperature sensor. <em>Channel 0 and C are from the neighbors.</em></p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">In</span> <span class="p">[</span><span class="mi">10</span><span class="p">]:</span> <span class="n">df0</span><span class="p">[[</span><span class="s">'time5'</span><span class="p">,</span> <span class="s">'temperature_F'</span><span class="p">]]</span>                                                                                              
+<span class="n">Out</span><span class="p">[</span><span class="mi">10</span><span class="p">]:</span> 
+                      <span class="n">time5</span> <span class="n">temperature_F</span>                                   
+<span class="n">channel</span>                               <span class="n">NaN</span>    <span class="mi">0</span>    <span class="mi">1</span>     <span class="mi">2</span>    <span class="mi">3</span>     <span class="n">C</span> <span class="n">channel</span>
+<span class="mi">0</span>       <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="bp">None</span>     <span class="n">NaN</span>
+<span class="mi">1</span>       <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="bp">None</span>     <span class="n">NaN</span>
+<span class="mi">2</span>       <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">55</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="bp">None</span>     <span class="n">NaN</span>
+<span class="mi">3</span>       <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">25</span><span class="p">:</span><span class="mi">06</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="mf">74.2</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+<span class="mi">4</span>       <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">06</span> <span class="mi">22</span><span class="p">:</span><span class="mi">25</span><span class="p">:</span><span class="mi">11</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="bp">None</span>     <span class="n">NaN</span>
+<span class="p">...</span>                     <span class="p">...</span>           <span class="p">...</span>  <span class="p">...</span>  <span class="p">...</span>   <span class="p">...</span>  <span class="p">...</span>   <span class="p">...</span>     <span class="p">...</span>
+<span class="mi">86046</span>   <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">59</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+<span class="mi">86047</span>   <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">59</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+<span class="mi">86048</span>   <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+<span class="mi">86049</span>   <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+<span class="mi">86050</span>   <span class="mi">2020</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">11</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">15</span>           <span class="n">NaN</span>  <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>  <span class="n">NaN</span>   <span class="n">NaN</span>     <span class="n">NaN</span>
+</code></pre></div></div>
+
+<h3 id="plot-data">Plot Data</h3>
+<p>And finally we can do our plotting.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#Start plotting stuff
+</span><span class="n">plt</span><span class="p">.</span><span class="n">style</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">'ggplot'</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="p">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">],</span> <span class="n">df0</span><span class="p">[</span><span class="s">'X'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s">'Neighbor1 ch0'</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">],</span> <span class="n">df0</span><span class="p">[</span><span class="s">'temperature_F'</span><span class="p">][</span><span class="s">'1'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s">'Deck'</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">],</span> <span class="n">df0</span><span class="p">[</span><span class="s">'temperature_F'</span><span class="p">][</span><span class="s">'2'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s">'Upstairs'</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">],</span> <span class="n">df0</span><span class="p">[</span><span class="s">'temperature_F'</span><span class="p">][</span><span class="s">'3'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s">'Garage'</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df0</span><span class="p">[</span><span class="s">'time5'</span><span class="p">],</span> <span class="n">df0</span><span class="p">[</span><span class="s">'Y'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s">'Neighbor2 chC'</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">xaxis</span><span class="p">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">xtick_locator</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">xaxis</span><span class="p">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">xtick_formatter</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s">'upper right'</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">savefig</span><span class="p">(</span><span class="s">'weather_v2.png'</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">11</span><span class="p">))</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div></div>
+<p><img src="/assets/2020-06-10_weather_v2.png" alt="Plot" /></p>
+
+<h3 id="next-steps">Next Steps</h3>
+
+<p>By gathering this data, I have been able to make some observations that I might not have seen otherwise.  The first thing I noticed was that our outside deck sensor gets too hot on sunny mornings, exaggerating the measurement.  Then I realized that our garage gets really hot in the afternoons when the sun shines on its door, which (I believe) in turn heats up the upstairs bedrooms excessively at night.  I also noticed that when we run an errand and re-park our vehicle inside the garage, the temperature increases immediately. I think I will keep working on this project as I have some ideas to take my learning further:</p>
+<ul>
+  <li>Perform some daily descriptive statistics on the data.</li>
+  <li>Find the relationship between the temperatures in the different areas of the house.</li>
+  <li>Get a raspberry pi for 24/7 data acquisition</li>
+  <li>Set up a web server on the pi, using Chart.js to make a dashboard</li>
+</ul>
+
+:ET

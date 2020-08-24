@@ -1,0 +1,319 @@
+I"�f<h1 id="geotagging-photos-with-google-location-history">Geotagging photos with Google Location History</h1>
+
+<p>Geotagging photos can be very useful and while most smartphones take care of this automatically, many modern DSLR cameras do not.  Using the approach below, we can tag photos from our library using our google location history assuming that we use the google map service and had our smartphone with us while shooting with the DSLR.</p>
+
+<p>To download google location history in json format, visit <a href="https://takeout.google.com/?hl=en">google takeout</a>.</p>
+
+<p>Additional considerations:</p>
+<ul>
+  <li>Images taken with DSLR set to the correct local time</li>
+  <li>Android Phone present while photos were taken</li>
+  <li>iPhone with google maps with permission set to “always allow” access to device location</li>
+</ul>
+
+<p>We can start by importing some things that we know we’re going to need.  And then we can load the json data with pandas using <code class="language-plaintext highlighter-rouge">json_normalize</code>.  By examining the json data, we can see that <code class="language-plaintext highlighter-rouge">locations</code> is probably the root note so we can start with that.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="k">with</span> <span class="nb">open</span> <span class="p">(</span><span class="s">'History.json'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">json_normalize</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">'locations'</span><span class="p">])</span>
+<span class="n">data</span><span class="p">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>timestampMs</th>
+      <th>latitudeE7</th>
+      <th>longitudeE7</th>
+      <th>accuracy</th>
+      <th>altitude</th>
+      <th>activity</th>
+      <th>velocity</th>
+      <th>heading</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1496705193030</td>
+      <td>611923950</td>
+      <td>-1498647164</td>
+      <td>26</td>
+      <td>70.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1496705101727</td>
+      <td>611923950</td>
+      <td>-1498647164</td>
+      <td>26</td>
+      <td>70.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1496705041669</td>
+      <td>611923950</td>
+      <td>-1498647164</td>
+      <td>26</td>
+      <td>70.0</td>
+      <td>[{'timestampMs': '1496705043690', 'activity': ...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="cleaning-up-and-converting-number-formats">Cleaning up and converting number formats</h2>
+
+<p>Next we can do some cleanup of data and convert some of the number formats.  One thing that is sort of magic about this is that datetime.fromtimestamp seems to automatically recognize the timestamp after it has been converted from milliseconds to seconds.  One other thing to mention is that the altitude needs to be an ‘int’ later on but we can start with ‘double’ for now.</p>
+
+<p>Note: There is an ‘activity’ column with varying amounts of nested dictionaries and lists that seem to contain some useful information about the motion of the phone at the time (resting, walking, driving).  We’ll skip this data for now since we don’t need it for this purpose.  Out of curiousity, I was able to flatten it out into strings in csv format, however there were sometimes misaligned columns and it became increasingly difficult to deal with these.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#output = data[['timestampMs', 'latitudeE7', 'longitudeE7']]
+</span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="k">def</span> <span class="nf">timefmt</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="c1">#return datetime.fromtimestamp(int(x)).strftime("%Y-%m-%dT%H:%m")
+</span>    <span class="k">return</span> <span class="n">datetime</span><span class="p">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">DataFrame</span><span class="p">()</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'timestampMs'</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">'timestampMs'</span><span class="p">].</span><span class="n">astype</span><span class="p">(</span><span class="s">'float'</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s">'timestampMs'</span><span class="p">].</span><span class="nb">apply</span><span class="p">(</span><span class="n">timefmt</span><span class="p">)</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'latitudeE7'</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">'latitudeE7'</span><span class="p">].</span><span class="n">astype</span><span class="p">(</span><span class="s">'float'</span><span class="p">)</span> <span class="o">/</span> <span class="mi">10000000</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'longitudeE7'</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">'longitudeE7'</span><span class="p">].</span><span class="n">astype</span><span class="p">(</span><span class="s">'float'</span><span class="p">)</span> <span class="o">/</span> <span class="mi">10000000</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'altitude'</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">'altitude'</span><span class="p">].</span><span class="n">astype</span><span class="p">(</span><span class="s">'double'</span><span class="p">)</span>
+<span class="n">output</span><span class="p">.</span><span class="n">head</span><span class="p">()</span>
+</code></pre></div></div>
+
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>timestampMs</th>
+      <th>timestamp</th>
+      <th>latitudeE7</th>
+      <th>longitudeE7</th>
+      <th>altitude</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:26:33</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:25:01</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:24:01</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:22:36</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:21:36</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#just checking what we're dealing with
+</span><span class="n">output</span><span class="p">.</span><span class="n">dtypes</span>
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>timestampMs           float64
+timestamp      datetime64[ns]
+latitudeE7            float64
+longitudeE7           float64
+altitude              float64
+dtype: object
+</code></pre></div></div>
+
+<h2 id="get-the-timestamp-from-the-image">Get the timestamp from the image</h2>
+
+<p>We can use the exif package to read the timestamp from an image.  We can test it out on a single image here.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#Using exif to read timestamp from image.  I tried using exif also to write back the GPS coordinates, however it seemed that GPSPhoto is a much easier option.
+</span><span class="kn">from</span> <span class="nn">exif</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">"./img/DSC_1850.jpg"</span><span class="p">,</span> <span class="s">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">image_file</span><span class="p">:</span>
+    <span class="n">my_image</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">image_file</span><span class="p">)</span>
+
+<span class="c1">#list all the information available in the image
+</span><span class="k">print</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">my_image</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s">' '</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">my_image</span><span class="p">.</span><span class="n">datetime_original</span><span class="p">)</span>
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['_exif_ifd_pointer', '_gps_ifd_pointer', '_segments', 'artist', 'cfa_pattern', 'color_space', 'components_configuration', 'compression', 'contrast', 'copyright', 'custom_rendered', 'datetime', 'datetime_digitized', 'datetime_original', 'digital_zoom_ratio', 'exif_version', 'exposure_bias_value', 'exposure_mode', 'exposure_program', 'exposure_time', 'f_number', 'file_source', 'flash', 'flashpix_version', 'focal_length', 'focal_length_in_35mm_film', 'gain_control', 'get', 'get_file', 'gps_version_id', 'has_exif', 'jpeg_interchange_format', 'jpeg_interchange_format_length', 'light_source', 'make', 'maker_note', 'max_aperture_value', 'metering_mode', 'model', 'orientation', 'photographic_sensitivity', 'pixel_x_dimension', 'pixel_y_dimension', 'reference_black_white', 'resolution_unit', 'saturation', 'scene_capture_type', 'scene_type', 'sensing_method', 'sensitivity_type', 'sharpness', 'software', 'subject_distance_range', 'subsec_time', 'subsec_time_digitized', 'subsec_time_original', 'user_comment', 'white_balance', 'x_resolution', 'y_and_c_positioning', 'y_resolution']
+ 
+2015:05:27 21:50:22
+</code></pre></div></div>
+
+<h2 id="find-the-matching-timestamp-in-the-google-data">Find the matching timestamp in the google data</h2>
+
+<p>Next, we want to match the timestamp of an image with a timestamp in the google history to find out our coordinates at the time a particular photo was taken.  The challenge here is that a timestamp from a photo may not match exactly with our data so we can use pandas .get_loc function to find the nearest match.  But first we’ll have to clean up the data a bit by sorting it and removing some duplicate entries as .get_loc requires.</p>
+
+<p>Note that ‘n’ is the row number or index in our sorted data where the match was found.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">my_image</span><span class="p">.</span><span class="n">datetime_original</span><span class="p">,</span> <span class="s">'%Y:%m:%d %H:%M:%S'</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s">'first'</span><span class="p">)</span>
+
+<span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">Index</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">])</span>
+<span class="n">n</span> <span class="o">=</span> <span class="n">idx</span><span class="p">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">'nearest'</span><span class="p">)</span>
+<span class="n">output</span><span class="p">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n</span><span class="p">]</span>
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2015-05-27 21:50:22
+
+timestampMs            1.43279e+09
+timestamp      2015-05-27 21:49:55
+latitudeE7                 60.1058
+longitudeE7               -149.434
+altitude                       NaN
+Name: 397104, dtype: object
+</code></pre></div></div>
+
+<h2 id="write-gps-exif-data-back-to-an-image">Write GPS Exif data back to an image.</h2>
+
+<p>We can use a package called GPSPhoto to easily write lat long in decimal format.</p>
+
+<p>Note: GPSPhoto has several dependencies and was a little tricky to satisfy them all.  One of the dependencies is ‘PIL’ (Python Image Library) but the newer fork ‘pillow’ will work.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#Now we'll use GPSPhoto to write some GPS coordinates to the image
+</span><span class="kn">from</span> <span class="nn">GPSPhoto</span> <span class="kn">import</span> <span class="n">gpsphoto</span>
+<span class="n">photo</span> <span class="o">=</span> <span class="n">gpsphoto</span><span class="p">.</span><span class="n">GPSPhoto</span><span class="p">(</span><span class="s">'./img/DSC_1368.JPG'</span><span class="p">)</span>
+<span class="n">info</span> <span class="o">=</span> <span class="n">gpsphoto</span><span class="p">.</span><span class="n">GPSInfo</span><span class="p">((</span><span class="mf">61.123</span><span class="p">,</span> <span class="o">-</span><span class="mf">148.456</span><span class="p">),</span> <span class="n">alt</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">timeStamp</span><span class="o">=</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">photo</span><span class="p">.</span><span class="n">modGPSData</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="s">'./img/DSC_1368.JPG'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h1 id="put-it-all-together">Put it all together</h1>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#Get list of image files in image directory
+</span><span class="kn">from</span> <span class="nn">exif</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">GPSPhoto</span> <span class="kn">import</span> <span class="n">gpsphoto</span>
+
+<span class="n">root</span> <span class="o">=</span> <span class="s">".</span><span class="se">\\</span><span class="s">img"</span>
+<span class="n">file_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">subdirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="p">.</span><span class="n">walk</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+     <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="c1">#print(name)
+</span>        <span class="n">file_list</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="p">.</span><span class="n">path</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="nb">file</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="s">'rb'</span><span class="p">)</span> <span class="k">as</span> <span class="n">image_file</span><span class="p">:</span>
+        <span class="n">my_image</span> <span class="o">=</span> <span class="n">Image</span><span class="p">(</span><span class="n">image_file</span><span class="p">)</span>
+    
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">my_image</span><span class="p">.</span><span class="n">datetime_original</span><span class="p">,</span> <span class="s">'%Y:%m:%d %H:%M:%S'</span><span class="p">)</span>
+    
+    <span class="c1">#get_loc requires values to be sorted and without duplicates
+</span>    <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s">'first'</span><span class="p">)</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">Index</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">])</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">idx</span><span class="p">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">'nearest'</span><span class="p">)</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s">'latitudeE7'</span><span class="p">]</span>
+    <span class="n">lon</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s">'longitudeE7'</span><span class="p">]</span>
+    <span class="n">altd</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s">'altitude'</span><span class="p">]</span>
+    
+    <span class="c1">#Filter out some bad values in the altitude after getting an error.   
+</span>    <span class="c1">#This would have been better done in the source data but for now this works.
+</span>    <span class="k">if</span> <span class="n">altd</span> <span class="o">!=</span> <span class="n">np</span><span class="p">.</span><span class="n">nan</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">altd</span> <span class="o">==</span> <span class="s">'NaN'</span><span class="p">:</span>
+            <span class="n">altd</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">altd</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">int_</span><span class="p">(</span><span class="n">altd</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">altd</span> <span class="o">&lt;</span> <span class="mi">5000</span><span class="p">:</span>  <span class="c1">#sometimes the altitude in google is weird
+</span>                <span class="n">altd</span> <span class="o">=</span> <span class="mi">0</span>          
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">altd</span> <span class="o">=</span> <span class="mi">0</span>
+            
+    <span class="n">photo</span> <span class="o">=</span> <span class="n">gpsphoto</span><span class="p">.</span><span class="n">GPSPhoto</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="n">gpsphoto</span><span class="p">.</span><span class="n">GPSInfo</span><span class="p">((</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">),</span> <span class="n">alt</span><span class="o">=</span><span class="n">altd</span><span class="p">,</span> <span class="n">timeStamp</span><span class="o">=</span><span class="n">dt</span><span class="p">)</span>
+    <span class="n">photo</span><span class="p">.</span><span class="n">modGPSData</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="nb">file</span><span class="p">)</span>
+    
+    <span class="k">print</span><span class="p">(</span><span class="s">'Modified image: '</span> <span class="o">+</span> <span class="nb">file</span> <span class="o">+</span> <span class="s">' with lat='</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span> <span class="o">+</span> <span class="s">' long='</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span> <span class="o">+</span> <span class="s">' alt='</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">altd</span><span class="p">))</span>
+
+
+</code></pre></div></div>
+
+<h3 id="results">Results</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    Modified image: .\img\2016-01-06_DSC_6237.JPG with lat=61.2064548 long=-149.9151696 alt=0
+    Modified image: .\img\2016-01-15_DSC_6501.JPG with lat=61.5779418 long=-149.1482996 alt=133
+    Modified image: .\img\DSC_1850.jpg with lat=60.1057598 long=-149.4343206 alt=0
+</code></pre></div></div>
+
+<p>I did not realize until I did this project but Adobe Lightroom has a map feature that displays photos from the library on a map, so this would be very useful for updating the library for that purpose.</p>
+
+:ET

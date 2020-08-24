@@ -1,0 +1,149 @@
+I"3<p>At some point in my career, I became concerned with tracking my hours worked and being able to show whether or not I was at the office for the required number of hours each day.  Let’s see if we can use our Google Location History to back up our story and prove that we were justified in taking off early on Friday afternoon.</p>
+
+<h1 id="thought-process">Thought process</h1>
+
+<p>We know that we can get the history of our lat/long for as long as we’ve used a smartphone with google maps.  With that, we can set a point of interest like an office building with a known lat/long.  Then we can ask ourselves the following question: How much time do I spend each day within a given radius of that point?  The distance between lat/long coordinates can be found with the <a href="https://en.wikipedia.org/wiki/Haversine_formula">haversine formula</a>.  Luckily someone already <a href="https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points">did the hard work</a> for us:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">radians</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">asin</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="k">def</span> <span class="nf">haversine</span><span class="p">(</span><span class="n">lon1</span><span class="p">,</span> <span class="n">lat1</span><span class="p">,</span> <span class="n">lon2</span><span class="p">,</span> <span class="n">lat2</span><span class="p">):</span>
+    <span class="s">"""
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """</span>
+    <span class="c1"># convert decimal degrees to radians 
+</span>    <span class="n">lon1</span><span class="p">,</span> <span class="n">lat1</span><span class="p">,</span> <span class="n">lon2</span><span class="p">,</span> <span class="n">lat2</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">radians</span><span class="p">,</span> <span class="p">[</span><span class="n">lon1</span><span class="p">,</span> <span class="n">lat1</span><span class="p">,</span> <span class="n">lon2</span><span class="p">,</span> <span class="n">lat2</span><span class="p">])</span>
+
+    <span class="c1"># haversine formula 
+</span>    <span class="n">dlon</span> <span class="o">=</span> <span class="n">lon2</span> <span class="o">-</span> <span class="n">lon1</span> 
+    <span class="n">dlat</span> <span class="o">=</span> <span class="n">lat2</span> <span class="o">-</span> <span class="n">lat1</span> 
+    <span class="n">a</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">dlat</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat1</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">dlon</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">asin</span><span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="n">a</span><span class="p">))</span> 
+    <span class="n">r</span> <span class="o">=</span> <span class="mi">6371</span> <span class="c1"># Radius of earth in kilometers. Use 3956 for miles
+</span>    <span class="k">return</span> <span class="n">c</span> <span class="o">*</span> <span class="n">r</span>
+</code></pre></div></div>
+<h1 id="we-continue-on-with-our-output-data-frame">We continue on with our output data frame</h1>
+<p>(see yesterday’s post)</p>
+
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>timestampMs</th>
+      <th>timestamp</th>
+      <th>latitudeE7</th>
+      <th>longitudeE7</th>
+      <th>altitude</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:26:33</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:25:01</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:24:01</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:22:36</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>1.496705e+09</td>
+      <td>2017-06-05 15:21:36</td>
+      <td>61.12345</td>
+      <td>-149.45678</td>
+      <td>70.0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p><br /></p>
+
+<p>Now we can add a distance column to our dataframe, filtering out values greater than a certain distance and finally group by date to get our daily hours worked.</p>
+
+<h1 id="calculate-a-time-delta">Calculate a time delta</h1>
+<p>A time delta is used to find the time difference between each record in the data which can then be summed by day.  I used to use <code class="language-plaintext highlighter-rouge">.fillna(0)</code> but pandas no longer accepts an integer here if the data is of datetime64 format.  Instead of <em>0</em> we now use <code class="language-plaintext highlighter-rouge">pd.Timedelta(seconds=0)</code></p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">output</span><span class="p">[</span><span class="s">'tdelta'</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">output</span><span class="p">.</span><span class="n">timestamp</span> <span class="o">-</span> <span class="n">output</span><span class="p">.</span><span class="n">timestamp</span><span class="p">.</span><span class="n">shift</span><span class="p">()).</span>\
+    <span class="n">fillna</span><span class="p">(</span><span class="n">pd</span><span class="p">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'tdelta'</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s">'tdelta'</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="p">.</span><span class="n">timedelta64</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">'m'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h1 id="enter-a-point-of-interest">Enter a point of interest</h1>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ilat</span> <span class="o">=</span> <span class="mf">61.12345</span>
+<span class="n">ilong</span> <span class="o">=</span> <span class="o">-</span><span class="mf">149.45678</span>
+</code></pre></div></div>
+
+<h1 id="radius">Radius</h1>
+<p>Choose a radius large enough to include all points within the area of interest.  In this case, 250 meters covers the building and parking lot where I worked.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">radius</span> <span class="o">=</span> <span class="mi">250</span> <span class="c1">#Meters
+</span><span class="n">radius</span> <span class="o">=</span> <span class="n">radius</span> <span class="o">/</span> <span class="mi">1000</span> <span class="c1">#Kilometers
+</span></code></pre></div></div>
+
+<h1 id="calculate-the-distance">Calculate the distance</h1>
+<p>This is the distance from the point of interest of every coordinate in the google history file.</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">output</span><span class="p">[</span><span class="s">'distance'</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="nb">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">haversine</span><span class="p">(</span><span class="n">ilong</span><span class="p">,</span> <span class="n">ilat</span><span class="p">,</span> \
+    <span class="n">x</span><span class="p">.</span><span class="n">longitudeE7</span><span class="p">,</span> <span class="n">x</span><span class="p">.</span><span class="n">latitudeE7</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h1 id="filter-by-distance-and-group-by-date">Filter by distance and group by date</h1>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">output</span><span class="p">[</span><span class="s">'date'</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">].</span><span class="n">dt</span><span class="p">.</span><span class="n">floor</span><span class="p">(</span><span class="s">'d'</span><span class="p">)</span>
+<span class="n">output</span><span class="p">[</span><span class="s">'tdelta'</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s">'tdelta'</span><span class="p">]</span> <span class="o">/</span> <span class="mi">60</span>  <span class="c1">#minutes to hours
+</span><span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="n">output</span><span class="p">[</span><span class="s">'distance'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">radius</span><span class="p">]</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[[</span><span class="s">'date'</span><span class="p">,</span> <span class="s">'tdelta'</span><span class="p">]]</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s">'date'</span><span class="p">]).</span><span class="nb">sum</span><span class="p">()</span>
+</code></pre></div></div>
+
+<h1 id="plot-the-data">Plot the data</h1>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="p">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">bar</span><span class="p">(</span><span class="n">output</span><span class="p">.</span><span class="n">index</span><span class="p">,</span> <span class="n">output</span><span class="p">.</span><span class="n">tdelta</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">axes</span><span class="p">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s">"Date"</span><span class="p">)</span>
+<span class="n">ax</span><span class="p">.</span><span class="n">axes</span><span class="p">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s">"Hours Worked (tdelta)"</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">show</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>Now we have our data summarized by day and we can take a quick look for any interesting trends and QC the data in general.</p>
+
+<p><img src="/assets/2020-06-02-plot.png" alt="Plot" /></p>
+
+<p>I think that is as far as I’ll take this project for now. Later on I might try to put together some sort of dashboard or report that could be used on a regular basis.</p>
+:ET
