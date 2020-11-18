@@ -5,7 +5,7 @@ date:   2020-11-17 12:00:00 -0800
 categories: python
 ---
 
-![Title Image](/assets/Well_Path_Simulator.jpg)
+![Title Image](/assets/Well_Path_simulator.jpg)
 
 This project is meant to be a fun demonstration of how we can use sensor data from a smart phone in such a way that emulates the real life application of directional drilling in oil & gas wells. Basically, what I want to do is to pretend that I'm drilling a well with my phone in hand, manually controlling the trajectory with the end result being a 3-dimensional plot of the well path along with a set of its surveys. As a drilling engineer, I knew this was possible but had not seen anyone actually do it, so I decided to give it a try.
 
