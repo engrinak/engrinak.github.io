@@ -5,7 +5,7 @@ date:   2021-01-21 12:00:00 -0800
 categories: python
 ---
 
-![Title Image](/assets/rm3100.jpg)
+![Title Image](/assets/RM3100.jpg)
 
 I recently purchased this 3 axis magnetometer chip from Amazon for about $37. This is the RM3100, "Military Grade" 3 axis accelerometer from Wit Motion. There are many applications for a sensor like this - drones, robots and navigation, but my main interest is in measuring the earth's magnetic field. What I want to do is set up a real time monitoring station to monitor geomagnetic disturbances. This is a common phenomenon that occurs here in Alaska on a regular basis and I think it would be fun to try to capture some data myself during such an event. The inspiration for this project comes from the BGS' project [Raspberry Pi Magnetometer](http://www.geomag.bgs.ac.uk/education/raspberry_pi_magnetometer.html). I am trying to do the same thing, but with a much cheaper and easier to obtain sensor. 
 
