@@ -12,7 +12,7 @@ I recently purchased this 3 axis magnetometer chip from Amazon for about $37. Th
 
 I also purchased a raspberry pi 4 to control the sensor and perform data acquisition. It's my first time playing with a pi, but so far it is just like a regular computer running linux and runs python. It also supports SSH and VNC out of the box, so the "headless" set up is fairly simple (it has HDMI ports, but there is no need to use them). 
 
-The biggest challenge thus far has been getting the magnetometer connected and getting readings from it. It came with a datasheet and some example c++ code that was written for some other controller board (Arduino, I believe), but it claims to support I2C and SPI communication so it should be able to work with the raspberry pi. I could find no mention of the RM3100 in the raspberry pi world (forums, stack overflow, etc) - so I am pretty much on my own with this thing. The promise of high resolution seems to make it worth the struggle.
+The biggest challenge thus far has been getting the magnetometer connected and getting readings from it. It came with a datasheet and some example c++ code that was written for some other controller board (Arduino, I believe), but it claims to support I2C and SPI communication so it should be able to work with the raspberry pi. I could find no mention of the RM3100 in the raspberry pi world (forums, stack overflow, etc) - so I am pretty much on my own with this thing. The promise of high resolution seems to make it worth the struggle however.
 
 Another challenge has been the physical aspect of mounting everything in an outdoor enclosure - ideally this "observatory" will be located outside in the back yard. That is the goal, but in my next post I will write in more detail.
 
