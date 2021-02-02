@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Geomagnetic Observatory - Part 2" 
-date:   2021-01-31 10:00:00 -0800
+date:   2021-02-02 11:30:00 -0800
 categories: python
 ---
 
@@ -14568,13 +14568,16 @@ It appears that the electrical tape used to secure the bulb lost some of its adh
 
 ### How I mis-applied the heat transfer equation
 But why was my estimate for the required wattage (101.98) so high? I think the answer to that is in the definition of the temperature difference used in the calculation. This should come from the difference between the inner and outer surfaces of the plastic box, not the difference between the inner and outer ambient temperature. The temperatures in the equation are referring to the surface temperatures! I do not currently have a way to measure the surface temperatures, but when I picked up the enclosure during the experiment, I could feel it was much warmer than the ambient temperature outside. Therefore, the delta T would be much lower than the delta T that I used for my estimate which would give a much lower wattage requirement. Basically, I did not take into account the heat transfer that has to happen from the surface of the enclosure to the cold, ambient air.
+<br><br>
 
 ### Safety
 Taking a step back however, I can see that having a heat source, along with 110V exposed contact points in such a small enclosure is not something that I would want to leave unattended for any amount of time, even outdoors. Safety should be the biggest concern, so I will plan to continue this project in the garage (without a lightbulb) where the temperature is controlled, despite the possibility of interference. (Spoiler for future post: the garage is full of magnetic interference, and I am currently trying to find a better place for it to live.)
+<br><br>
 
 ### Conclusion
 To answer the question posed in the title of this post: Yes, 60W is more than enough to keep a raspberry Pi warm outside in freezing temperatures but it is not a good idea to put the lightbulb so close to the electronics, especially inside a plastic enclosure. I think my next step would be to build a medium sized bird-house like box. In my next post however, I will get to the fun part and show how I learned to communicate with the RM3100 sensor (the core of this project). 
 <br><br>
+
 In the mean time, I would love to hear from the professionals out there - do you have experience designing control boxes or enclosures to withstand cold temperatures? Leave a comment on my LinkedIn post or feel free to reach out directly. 
 
 
