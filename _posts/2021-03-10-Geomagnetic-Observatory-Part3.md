@@ -10,7 +10,7 @@ categories: python
 # Intro
 
 In this post I will answer the question: can you detect disturbances in the earth’s magnetic field using a cheap magnetometer and a Raspberry Pi? I will try to condense weeks of tinkering and testing down into a few paragraphs describing how I managed to get real measurements from the sensor. After that I will look at some of my data and compare it with data from a real [USGS observatory](https://www.usgs.gov/products/data-and-tools/real-time-data/geomagnetism) to see how it compares to actual scientific measurements.
-The RM3100 sensor I purchased from Amazon came with a link to a datasheet and some example code written for some other type of development board in C. I could find little reference to this sensor on any other blog or forum, except for one seemingly unfinished project on Github. I was not able to glean anything useful from the example C code, but I took some cues from the datasheet and followed an example sequence diagram and after a couple weeks of trial and error, I was able to establish that my python code was working and that my measurements were indeed valid. This all comes at a time when geomagnetic activity has been peaking, and in addition to some cool Aurora Borealis photos, I have also captured some cool data that has indeed confirmed the validity of the measurement.
+The RM3100 sensor I purchased from Amazon came with a link to a datasheet and some example code written for some other type of development board in C. I could find little reference to this sensor on any other blog or forum, except for one seemingly unfinished project on Github. I was not able to glean anything useful from the example C code, but I took some cues from the datasheet and followed an example sequence diagram and after a couple weeks of trial and error, I was able to establish that my python code was working and that my measurements were indeed valid. This all comes at a time when geomagnetic activity has been peaking, and in addition to some cool Aurora Borealis photos, I have also captured some cool data that has confirmed the validity of the measurement.
 
 
 # Connection
@@ -113,7 +113,7 @@ For more details on these comparisons, check my [Jupyter notebook](https://githu
 
 # Conclusion
 
-I think this data is enough proof for me that the RM3100 performs reasonably well as a geomagnetic sensor. I think there is a strong enough correlation between my data and the USGS data.
+I think this data provides enough evidence for me that the RM3100 performs reasonably well as a geomagnetic sensor. I think there is a strong enough correlation between my data and the USGS data.
 
 There are some physical reasons why my data might have some differences. The main reason is the difference between my location and the observatory. Disturbance fields can change with time, causing a phase shift between large distances. 
 
