@@ -4,9 +4,7 @@ title: About
 permalink: /about/
 ---
 
-Hi, my name is Steve and I am a Mechanical Engineer with expertise in wellbore surveying and mechanical data analysis. I specialize in supporting businesses to achieve their goals and meet customer requirements. I do this by applying engineering principles backed by data to affect operational decisions. I have been successful because of my ability to learn and leverage technology to create efficiency while building strong relationships with clients. I have worked in manufacturing facilities, in oilfields on drilling rigs in the arctic, and in client offices. I also ran a successful photography business, focused on seasonal family portraits and small events.
-
-I am actively seeking new opportunities and available for hire!
+...
 
 Connect with me on [LinkedIn](https://www.linkedin.com/in/stephen-fell/)
 
