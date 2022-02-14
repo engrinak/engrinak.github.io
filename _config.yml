@@ -18,3 +18,9 @@ github_username:  engrinak
 
 # Build settings
 markdown: kramdown
+
+permalink: /:categories/:title/
+
+theme: minima
+minima:
+  skin: dark

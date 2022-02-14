@@ -1,0 +1,98 @@
+I"*#<h2 id="building-a-data-pipeline-from-a-raspberry-pi-to-a-web-server">Building a data pipeline from a raspberry pi to a web server.</h2>
+
+<p>Since the beginning of this project, I have wanted to be able to publish my data on my web site, making it publicly available. To accomplish this, I did a lot of googling to discover how to set things up. One of the biggest challenges is simply setting up automatic login without the need for user input. I wanted to “set it and forget it”, as they used to say on tv late at night when I was a kid. In this post I will explain how I accomplished this - at least the automatic upload and ingest data part. First, I generated the data in text format automatically with my python script. You can read about the magnetometer data in my previous posts here. Secondly, I automated the upload process. And finally, I automated loading the data to the SQL database on the server side.</p>
+
+<h2 id="create-a-sql-database">Create a SQL database</h2>
+
+<p>First, I needed a place to put the data. Most web hosting services offer SQL databases and, in my case, (bluehost) I am using PostgreSQL. So, I just went in to phpPgAdmin and created a database with a table and the columns that I needed.</p>
+
+<p><img src="/assets/20220213/PostgreSQLTable.png" alt="Create Table" /></p>
+
+<p>After that I did some test runs, loading the data into the table manually from the text file. That was easier than I expected.</p>
+
+<p><img src="/assets/20220213/PostgreSQLTable2.png" alt="DB Table" /></p>
+
+<h2 id="modify-local-python-script-to-start-a-new-file-each-day">Modify local python script to start a new file each day</h2>
+
+<p>I modified the getmagdata.py script simply by adding a date string to the file name.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">dt</span><span class="p">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">dt</span><span class="p">.</span><span class="n">today</span><span class="p">(),</span> <span class="s">'%Y%m%d'</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><img src="assets/20220213/scriptsnapshot.png" alt="Python Script" /></p>
+
+<p>Why did I want to do it this way? Well, I have seen other systems that break data down into daily chunks and I had a feeling it would work well for this project. The only downside I’ve seen so far is that if the database gets wiped out, you then must reload all the data from many files rather than from one continuous file. It would be trivial to automate that task as well, however.</p>
+
+<h2 id="uploading-a-single-file-to-the-web-server-with-scp">Uploading a single file to the web server with scp</h2>
+<p>One tool that I find to be very useful is the secure copy command scp, documentation for which can be found <a href="https://manpages.ubuntu.com/manpages/bionic/en/man1/scp.1.html">here</a>.</p>
+
+<p>Here is a simple example of how I upload a text file to my webserver:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pi@raspberrypi:~ $ scp /home/pi/Documents/rm3100/magdata20220122.txt username@xx.xx.xx.xx:~/magtest.txt
+</code></pre></div></div>
+
+<p>The problem with this is that it prompts for a password every time. You can set up ssh keys, but even then, it will require the passphrase for the key. Now you <em>could</em> generate ssh keys without a passphrase but I did not want to take that shortcut. I really wanted to find a way to automate this process.</p>
+
+<h2 id="ssh-agent">SSH-Agent</h2>
+<p>I am not using <a href="https://manpages.ubuntu.com/manpages/bionic/en/man1/ssh-agent.1.html">ssh-agent</a> in this process, but I wanted to share a bit about this option that I explored in my quest for automation. In a bit, I will explain why this did not work for me but I want to lead you through my thought process first.</p>
+
+<h3 id="starting-ssh-agent">Starting ssh-agent:</h3>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pi@raspberrypi:~ $ ssh-agent
+SSH_AUTH_SOCK=/tmp/ssh-1x46XCUTxMcd/agent.22631; export SSH_AUTH_SOCK;
+SSH_AGENT_PID=22632; export SSH_AGENT_PID;
+echo Agent pid 22632;
+</code></pre></div></div>
+<h3 id="loading-the-private-key">Loading the private key:</h3>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pi@raspberrypi:~/Documents/rm3100/data $ ssh-agent ssh-add ~/.ssh/id_rsa_2
+Enter passphrase for /home/pi/.ssh/id_rsa_2:
+Identity added: /home/pi/.ssh/id_rsa_2 (/home/pi/.ssh/id_rsa_2)
+</code></pre></div></div>
+<h3 id="secure-copy-without-passphrase-prompt">Secure copy without passphrase prompt:</h3>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pi@raspberrypi:~ $ scp /home/pi/Documents/rm3100/magdata20220122.txt username@xx.xx.xx.xx:~/magtest.txt
+</code></pre></div></div>
+
+<p>I thought I had found a solution, but when I tried to automate the secure copy with a cron job, it failed to do anything. The reason why, I do not know, but my google-fu returned me another tool to try…</p>
+
+<h2 id="keychain">Keychain</h2>
+<p>I followed this <a href="https://gist.github.com/Justintime50/297d0d36da40834b037a65998d2149ca">guide</a> on setting up keychain and using it in a cron job.</p>
+
+<p>In the part about adding some stuff to .zlogin:
+Add it to .bashrc if using linux (bourne again shell) like me (.zlogin is for macOS I believe, or some other shell like zsh).</p>
+
+<p>Here is what I added to my cron file. Somehow, I figured out that I needed to add SHELL=/bin/bash to tell cron not to use its own shell.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>SHELL=/bin/bash
+2 0 * * * . "$HOME"/.keychain/${HOSTNAME}-sh; bash ~/upldata.sh
+</code></pre></div></div>
+
+<h2 id="find-and-upload-the-newest-file">Find and upload the newest file</h2>
+
+<p>You might notice in my cron-job that I am scheduling a script called upldata.sh. This is a script for finding and uploading the latest complete daily magnetometer file in my data directory.</p>
+
+<p>Here is the script, the inspiration for which came from this stackoverflow <a href="https://stackoverflow.com/questions/1015678/get-most-recent-file-in-a-directory-on-linux">post</a>:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#!/bin/bash
+ls -Art ~/Documents/rm3100/data | tail -n 2 | { read message; scp /home/pi/Documents/rm3100/data/$message username@xx.xx.xx.xx:~/magdata.txt; }
+</code></pre></div></div>
+
+<p>I modified the <code class="language-plaintext highlighter-rouge">tail</code> portion to look for the 2nd newest file instead of the newest. The reason for this is that after midnight, the magnetometer script is already writing to a new file which is incomplete. So at this time, I want to upload the completed file from the previous day. After returning the file name, I pipe that into a read command which reads whatever was returned from the last. This way, I can use the output as a variable in my scp upload (the $message string variable contains the desired file).</p>
+
+<h2 id="ingest-the-data-into-the-sql-server">Ingest the data into the SQL server</h2>
+<p>After the file is uploaded to the webserver (replacing the file from the previous day), it is ready to be loaded into the database.</p>
+
+<p>This can be done from a shell script as well. First, I googled how to execute SQL statements from the shell and followed the provided solution <a href="https://stackoverflow.com/questions/18223665/postgresql-query-from-bash-script-as-database-user-postgres">here</a>.</p>
+
+<p>And from there, I cobbled together the following script:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#!/bin/bash
+psql postgresql://db_username:db_password@localhost/db_Name &lt;&lt; EOF
+       \COPY db_table FROM '/ServerHomePath/magdata.txt' WITH (FORMAT csv)
+EOF
+</code></pre></div></div>
+
+<p>Then I scheduled this with a cron-job (on the web server) to run at 7 minutes after midnight, each day:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7 0 * * * bash loaddata.sh
+</code></pre></div></div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Now I have my magnetometer data pipeline, pushing new data every day to my website’s PostgreSQL server. I am happy with the way this works for now but maybe in the future I will investigate ways to perform the update more frequently. There is a problem with the psql script in that it needs to load only fresh data – if it runs into duplicate rows, it will abort the operation. That is why I am sticking to daily updates for now. For sure, I could write a server-side python script instead of the psql utility and I think that would afford the option of loading data much more frequently.</p>
+
+:ET

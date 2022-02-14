@@ -5,7 +5,7 @@ permalink: /resume/
 ---
 
 ### Stephen Fell
-Anchorage, AK 99502 | 907-903 9427 | stephen.fell@gmail.com
+Anchorage, AK 99502 | stephen.fell@gmail.com
 
 ### ANALYST | ENGINEER
 Solutions-driven, customer-centered Engineer and Analyst with expertise In surveying and service application. A collaborative team leader, providing troubleshooting and diagnostic support, supporting both the customer’s needs and business initiatives. 
